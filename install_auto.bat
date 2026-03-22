@@ -6,7 +6,6 @@ title OpenPilot Auto Installer
 set PLINK=plink.exe
 set KEYFILE=id_rsa.ppk
 set USER=comma
-set HOSTKEY=ssh-ed25519 255 SHA256:phli1wMOyJjGlSUoC2hUoMkTegPzCpxgxoEBF4vwGCk
 set TMP_PORT=%TEMP%\comma_portcheck.txt
 set TMP_AUTH=%TEMP%\comma_authcheck.txt
 set REMOTE_SCRIPT=%TEMP%\remote_install_%RANDOM%.sh
@@ -60,7 +59,7 @@ for /l %%i in (1,1,255) do (
     echo closed
   ) else (
     echo port 22 open
-    "%PLINK%" -batch -ssh -hostkey "%HOSTKEY%" -i "%KEYFILE%" -l %USER% !IP! "echo COMMA_OK" > "%TMP_AUTH%" 2>nul
+    "%PLINK%" -batch -ssh -i "%KEYFILE%" -l %USER% !IP! "echo COMMA_OK" > "%TMP_AUTH%" 2>nul
     findstr /C:"COMMA_OK" "%TMP_AUTH%" >nul 2>nul
     if not errorlevel 1 (
       set FOUND_IP=!IP!
@@ -78,6 +77,19 @@ echo [ERROR] No matching comma device found.
 goto :cleanup
 
 :install
+echo.
+echo [INFO] First SSH check...
+echo       If a host key question appears, type y and press Enter.
+echo.
+
+"%PLINK%" -ssh %USER%@%FOUND_IP% -i "%KEYFILE%" "exit"
+if errorlevel 1 (
+  echo.
+  echo [ERROR] SSH check failed.
+  echo [HINT] Host key may have changed or key/login may be wrong.
+  goto :cleanup
+)
+
 echo.
 echo [INFO] Creating remote install script...
 
@@ -140,13 +152,18 @@ echo [INFO] Creating remote install script...
   echo fi
 ) > "%REMOTE_SCRIPT%"
 
+if errorlevel 1 (
+  echo [ERROR] Failed to create remote script.
+  goto :cleanup
+)
+
 echo.
 echo ==========================================
 echo   Live Remote Output
 echo ==========================================
 echo.
 
-"%PLINK%" -ssh -batch -hostkey "%HOSTKEY%" -i "%KEYFILE%" -m "%REMOTE_SCRIPT%" %USER%@%FOUND_IP%
+"%PLINK%" -ssh -batch -i "%KEYFILE%" -m "%REMOTE_SCRIPT%" %USER%@%FOUND_IP%
 set RC=%ERRORLEVEL%
 
 echo.

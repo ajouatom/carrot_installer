@@ -24,7 +24,6 @@ if "%BRANCH%"=="" (
 set USER=comma
 set KEYFILE=id_rsa.ppk
 set PLINK=plink.exe
-set HOSTKEY=ssh-ed25519 255 SHA256:phli1wMOyJjGlSUoC2hUoMkTegPzCpxgxoEBF4vwGCk
 set REMOTE_SCRIPT=%TEMP%\remote_install_%RANDOM%.sh
 
 if not exist "%PLINK%" (
@@ -43,6 +42,23 @@ echo [INFO] Branch      : %BRANCH%
 echo [INFO] User        : %USER%
 echo.
 
+echo [INFO] First SSH check...
+echo       If a host key question appears, type y and press Enter.
+echo.
+
+"%PLINK%" -ssh %USER%@%IP% -i "%KEYFILE%" "exit"
+if errorlevel 1 (
+  echo.
+  echo [ERROR] SSH check failed.
+  echo [HINT] Check:
+  echo        1. IP is correct
+  echo        2. device is on Wi-Fi
+  echo        3. id_rsa.ppk is correct
+  echo        4. host key was accepted
+  goto :end
+)
+
+echo.
 echo [INFO] Creating remote script...
 (
   echo set -e
@@ -114,7 +130,7 @@ echo   Live Remote Output
 echo ==========================================
 echo.
 
-"%PLINK%" -ssh -batch -hostkey "%HOSTKEY%" -i "%KEYFILE%" -m "%REMOTE_SCRIPT%" %USER%@%IP%
+"%PLINK%" -ssh -batch -i "%KEYFILE%" -m "%REMOTE_SCRIPT%" %USER%@%IP%
 set RC=%ERRORLEVEL%
 
 echo.
